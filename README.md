@@ -2,14 +2,15 @@
 This example showcases a multithreaded web scraper that utilizes SQLite for storage and the ScrapeNinja API as its scraping engine.
 
 # Running in Docker
+Run these commands from cloned repo folder:
 ```bash
-# build container from project folder
+# Build container from project folder. Run once.
 docker-compose build
 
-# init db. this will create /data/scraper.sqlite3 on host machine, mirrored to Docker container
+# Init db (run once). this will create /data/scraper.sqlite3 on host machine, mirrored to Docker container
 docker-compose run scraper /bin/sh init.sh
 
-# Run the scraper. Launch multiple times to scrape more items
+# Run the scraper. Run multiple times to scrape more items
 docker-compose up
 ```
 
