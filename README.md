@@ -1,42 +1,62 @@
-# Example multithreaded scraper which uses sqlite to get a list of items to scrape 
-# and then launches ScrapeNinja for each item, putting scraped data back into database
+# ScrapeNinja Demo Node.js Scraper
+This example showcases a multithreaded web scraper that utilizes SQLite for storage and the ScrapeNinja API as its scraping engine.
 
-Pre-requisites:
-Node.js 16+
-Sqlite 3.35+
+## Pre-requisites:
+- Node.js 16+
+- SQLite 3.31+
 
 
-Create empty database with tables:
+## Setting Up the Database
+Create an empty database with tables:
 ```bash
 npx knex migrate:latest --env production
 ```
+This command will generate a scraper.sqlite3 database in the project folder.
 
-This will create `scraper.sqlite3` database in project folder.
-
-Create seed test values:
+Insert seed test values:
 ```bash
 npx knex seed:run --env production
 ```
-This will insert 2 sample URLs to scrape into `items` table of the database.
+This will add 3 sample URLs to the items table in the database for scraping.
 
-## Subscribe to ScrapeNinja
-https://apiroad.net/marketplace/apis/scrapeninja and get your API key
+## ScrapeNinja Subscription
+ScrapeNinja is a scraping API with smart retries and rotating proxies under the hood.
 
-## Settings
-Create .env in project folder and set your APIROAD_KEY 
+### Via APIRoad
+Subscribe to ScrapeNinja at [ScrapeNinja API on APIRoad](https://apiroad.net/marketplace/apis/scrapeninja) and obtain your API key.
 
-## Launching the scraper
+### Via RapidAPI
+ScrapeNinja is also available on RapidAPI: https://rapidapi.com/restyler/api/scrapeninja (you will need to change API key name in the HTTP request then, check the code of `src/step1.js`)
 
+## Configure Scraper Settings:
+
+- Create a .env file in the project folder (you can copy from .env.dist).
+- Set your `APIROAD_KEY` within this file.
+
+# Running the Scraper
+Launch the scraper by entering the following in your terminal:
 ```bash
 node src/step1.js
 ```
+This command fetches a set of items from the items table, available for scraping. If ScrapeNinja encounters an error, the `ep1ErrorCount` counter field will increment. Subsequent runs of `step1.js` will only fetch new items or failed items where `ep1ErrorCount` is less than 3.
 
-## Working with data in production
-Scraper puts all data into `data` TEXT blob with JSON inside. It is possible to extract particular values at runtime:
+
+
+# Querying the Scraped Data
+The scraper stores the ScrapeNinja response in a data TEXT blob with embedded JSON. You can extract specific values at runtime using SQL queries:
 ```sql
 select
   id,
   json_extract(data, '$.extractor') as extracted
+from items
+```
+
+Retrieve raw HTML response and website response status code:
+```sql
+select
+  id,
+  json_extract(data, '$.info.statusCode') as httpStatus,
+  json_extract(data, '$.body') as html
 from items
 ```
 
@@ -45,26 +65,25 @@ Selecting just titles:
 SELECT json_extract(data, '$.extractor.result.title') from items;
 ```
 
-## When you need more speed...
+### Boosting Query Performance
 
 Use generated columns:
 Generated column support was added with SQLite version 3.31.0 (2020-01-22).
 
+Add new virtual column:
 ```sql
 alter table items
 add column title string
 as (json_extract(value, '$.extractor.result.title'));
 ```
 
-### Build an index:
+Build an index:
 ```sql
-create index items_some_key on items(some_key);
+create index items_title on items(title);
 ```
 
-Now the query works instantly:
-
+With the index in place, the following query should execute almost instantly:
 ```sql
-select id, some_key
-from items
-where id = 3;
+select id, title
+from items;
 ```
