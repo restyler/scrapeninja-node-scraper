@@ -7,7 +7,7 @@ const knex_config = {
   production: {
     client: 'sqlite3',
     connection: {
-      filename: './scraper.sqlite3'
+      filename: './data/scraper.sqlite3'
     },
     migrations: {
       tableName: 'knex_migrations'

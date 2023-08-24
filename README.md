@@ -1,23 +1,37 @@
 # ScrapeNinja Demo Node.js Scraper
 This example showcases a multithreaded web scraper that utilizes SQLite for storage and the ScrapeNinja API as its scraping engine.
 
+# Running in Docker
+```bash
+# build container from project folder
+docker-compose build
+
+# init db. this will create /data/scraper.sqlite3 on host machine, mirrored to Docker container
+docker-compose run scraper /bin/sh init.sh
+
+# Run the scraper. Launch multiple times to scrape more items
+docker-compose up
+```
+
+# Alternative: Running manually without Docker
 ## Pre-requisites:
 - Node.js 16+
 - SQLite 3.31+
 
 
-## Setting Up the Database
+## Setting up the database
 Create an empty database with tables:
 ```bash
 npx knex migrate:latest --env production
 ```
-This command will generate a scraper.sqlite3 database in the project folder.
+This command will create an empty `/data/scraper.sqlite3` database.
 
-Insert seed test values:
+## Inserting seed test values:
 ```bash
 npx knex seed:run --env production
 ```
-This will add 3 sample URLs to the items table in the database for scraping.
+This will add 3 sample URLs into the `items` table in the database for scraping.
+
 
 ## ScrapeNinja Subscription
 ScrapeNinja is a scraping API with smart retries and rotating proxies under the hood.
@@ -28,12 +42,12 @@ Subscribe to ScrapeNinja at [ScrapeNinja API on APIRoad](https://apiroad.net/mar
 ### Via RapidAPI
 ScrapeNinja is also available on RapidAPI: https://rapidapi.com/restyler/api/scrapeninja (you will need to change API key name in the HTTP request then, check the code of `src/step1.js`)
 
-## Configure Scraper Settings:
+## Configure scraper settings:
 
 - Create a .env file in the project folder (you can copy from .env.dist).
 - Set your `APIROAD_KEY` within this file.
 
-# Running the Scraper
+# Running the scraper
 Launch the scraper by entering the following in your terminal:
 ```bash
 node src/step1.js
@@ -42,7 +56,7 @@ This command fetches a set of items from the items table, available for scraping
 
 
 
-# Querying the Scraped Data
+# Querying the scraped data
 The scraper stores the ScrapeNinja response in a data TEXT blob with embedded JSON. You can extract specific values at runtime using SQL queries:
 ```sql
 select
