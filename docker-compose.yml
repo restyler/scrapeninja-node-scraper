@@ -7,10 +7,3 @@ services:
       - APIROAD_KEY=${APIROAD_KEY}
     volumes:
       - ./data:/usr/src/app/data
-    depends_on:
-      - db
-
-  db:
-    image: busybox
-    volumes:
-      - ./data:/usr/src/app/data

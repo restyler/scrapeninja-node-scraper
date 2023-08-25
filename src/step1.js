@@ -1,4 +1,4 @@
-import { db } from './lib.js';
+import { db, log } from './lib.js';
 import fetch from 'node-fetch';
 import { forEachLimit } from 'modern-async'
 // dotenv
@@ -39,10 +39,13 @@ let extractor = `function extract (input, cheerio) {
   }`;
 
 const scrape = async (item) => {
+
+    
+
     await db('items').update({ ep1StartedAt: db.fn.now() }).where('id', item.id);
 
     let geo = Math.random() > 0.5 ? "us" : "eu";
-    console.log(`scraping ${item.url}... with ${geo} geo`);
+    log(`scraping ${item.url}... with ${geo} geo`, 'info', item.id);
 
     // change to 'https://scrapeninja.p.rapidapi.com/scrape-js' if you are subsribed to ScrapeNinja via RapidAPI
     const url = 'https://scrapeninja.apiroad.net/scrape';
@@ -77,11 +80,11 @@ const scrape = async (item) => {
             resText = await res.text();
             resJson = JSON.parse(resText);
         } catch (e) {
-            console.error('err parsing json:', resText);
+            log('err parsing json: ' + resText.substring(0, 300), 'error', item.id);
         }
 
         if (res.status == 429) {
-            console.log('429 error', res.headers);
+            log('429 error' + JSON.stringify(res.headers), 'error', item.id);
         }
 
         // Basic error handling. Modify if neccessary
@@ -90,12 +93,12 @@ const scrape = async (item) => {
             throw new Error('http code:' + res.status + ' body:' + resText);
         }
 
-        console.log('target website response status: ', resJson.info.statusCode);
+        log('target website response status: ' + resJson.info.statusCode, 'info', item.id);
         if (!resJson.extractor.result || !resJson.extractor.result.name) {
             //console.log('empty extractor, target website response body: ', resJson);
         }
 
-        console.log('target website response extractor: ', resJson.extractor);
+        log('target website response extractor: ' + JSON.stringify(resJson.extractor), 'info', item.id);
 
         if (!resJson.extractor || !resJson.extractor.result) {
             throw new Error('Bad extractor result:' + JSON.stringify(resJson.extractor));
@@ -115,8 +118,7 @@ const scrape = async (item) => {
                 ep1ErrorCount: db.raw('?? + 1', ['ep1ErrorCount'])
             })
             .where('id', item.id);
-
-        console.error(e);
+        log(e.toString(), 'error', item.id);
     }
 }
 

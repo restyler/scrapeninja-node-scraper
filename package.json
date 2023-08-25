@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "scraper": "node src/step1.js",
+    "ui": "nodemon ui/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "type": "module",
