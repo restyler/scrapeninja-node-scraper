@@ -23,7 +23,10 @@ new Vue({
 
         socketRetryCount: 0,
         maxSocketRetries: 5,
-        socketRetryInterval: 5000
+        socketRetryInterval: 5000,
+
+        selectedTier: 'all',
+        companyNameFilter: ''
     },
     created() {
         this.connectWebSocket();
@@ -59,6 +62,29 @@ new Vue({
                 container.scrollTop = container.scrollHeight;
             });
         },
+        // example ouput: 2.5M, 322k, 123
+        formatNumber(number) {
+            if (!number) return '-';
+            if (number >= 1000000) {
+                return (number / 1000000).toFixed(1) + 'M';
+            } else if (number >= 1000) {
+                return (number / 1000).toFixed(1) + 'k';
+            } else {
+                return number;
+            }
+        },
+
+        companyTier(item) {
+            if (item.data_semrush_visits_latest_month > 1000000 || item.data_num_acquisitions > 2 || item.data_funding_total_value_usd > 5000000) {
+                return 'gem';
+            }
+
+            if (item.data_semrush_visits_latest_month > 200000 || item.data_funding_total_value_usd > 1000000) {
+                return 'mature';
+            }
+
+            return false;
+        },
 
         fetchItemData(itemId) {
             // Set loadingDataFor for the current itemId to true
@@ -71,11 +97,11 @@ new Vue({
                     const item = this.items.find(i => i.id === itemId);
                     if (item) {
                         item.data = JSON.parse(data.data);
-                        if (item.data.body) {
+                        //if (item.data.body) {
                             // encode html to prevent json viewer from breaking
-                            item.data.body = item.data.body.substring(0, 500).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '...';
+                        //    item.data.body = item.data.body.substring(0, 500).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '...';
                             
-                        }
+                        //}
 
                         item.logs = data.logs;
                     }
@@ -154,9 +180,11 @@ new Vue({
                 console.error("WebSocket is not open. Can't send message.");
             }
         },
-
+        filterItems() {
+            this.fetchItems(this.currentPage);
+        },
         fetchItems(page) {
-            fetch(`/items?page=${page}`)
+            fetch(`/items?page=${page}&tier=${this.selectedTier}&companyName=${encodeURIComponent(this.companyNameFilter)}`)
                 .then(response => response.json())
                 .then(data => {
                     this.items = data.items;
@@ -165,6 +193,10 @@ new Vue({
                     this.lastRefreshAt = new Date();
                 });
             
+        },
+
+        downloadCSV() {
+            window.location.href = `/items/csv?tier=${this.selectedTier}&companyName=${encodeURIComponent(this.companyNameFilter)}`;
         },
 
         pauseFetching() {

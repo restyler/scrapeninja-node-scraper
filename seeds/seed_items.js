@@ -10,13 +10,31 @@ export const seed = async (knex) => {
   // Inserts seed entries
   await knex('items').insert([
     {
-      url: 'https://news.ycombinator.com/item?id=37231276'
+      url: 'make.com'
     },
     {
-      url: 'https://news.ycombinator.com/item?id=37247394'
+      url: 'acquia.com'
     },
     {
-      url: 'https://non-existing.url/'
+      url: 'apple.com'
+    },
+    {
+      url: 'similarweb.com'
+    },
+    {
+      url: 'searchanise.io'
+    },
+    {
+      url: 'fly.io'
+    },
+    {
+      url: 'osii.com'
+    },
+    {
+      url: 'non-existent-domain.com'
+    },
+    {
+      url: 'bad-url'
     }
     
   ]);

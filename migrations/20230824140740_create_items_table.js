@@ -12,6 +12,7 @@ export const up = function(knex) {
         table.datetime('ep1StartedAt');
         table.datetime('ep1FinishedAt');
         table.datetime('ep1ErrorAt');
+        table.integer('ep1HttpResponseCode', 3);
         table.text('ep1ErrorMsg');
         table.integer('ep1ErrorCount').defaultTo(0);
     });

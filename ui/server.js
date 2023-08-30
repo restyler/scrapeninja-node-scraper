@@ -4,7 +4,7 @@ import { spawn } from 'child_process';
 import { WebSocketServer } from 'ws';
 import { db, debounceFactory } from '../src/lib.js';
 import path from 'path';
-
+import Papa from 'papaparse';
 
 import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -47,32 +47,132 @@ const ITEMS_FIELDS = ['id',
 'createdAt',
 'updatedAt',
 'data',
+'ep1HttpResponseCode',
 'ep1StartedAt',
 'ep1FinishedAt',
 'ep1ErrorAt',
 'ep1ErrorMsg',
 'ep1ErrorCount'];
 
-app.get('/items', async (req, res) => {
-    const page = parseInt(req.query.page) || 1; // Default to page 1
-    const offset = (page - 1) * ITEMS_PER_PAGE;
+const ITEMS_JSON_FIELDS = [
+    'data.info.semrush_summary.semrush_global_rank', 
+    'data.info.social_fields.linkedin.value', 
+    'data.info.semrush_summary.semrush_visits_latest_month',
+    'data.properties.short_description',
+    'data.properties.identifier.permalink',
+    'data.info.funding_rounds_summary.funding_total.value_usd',
+    'data.info.acquisitions_summary.num_acquisitions',
+    'data.info.overview_company_fields.company_type',
+    'data.info.company_about_fields.website.hostname',
+];
 
-    // order
+// build a simple alias function which will return word after last dot and pre-last + 'value' if last word is 'value'
+// example: .info.social_fields.linkedin.value -> linkedin_value
+// example2: .info.social_fields.linkedin -> linkedin
+const fieldShortAlias = (field) => {
+    let parts = field.split('.');
+    let last = parts.pop();
+    let preLast = parts.pop();
+    if (last === 'value' || last === 'value_usd') {
+        return 'data_' + preLast + '_' + last;
+    } else {
+        return 'data_' + last;
+    }
+}
+
+const ITEMS_JSON_FIELDS_TRANSFORMED = ITEMS_JSON_FIELDS.map(v => db.raw(`JSON_EXTRACT(data, "$.${v}") as ${fieldShortAlias(v)}`));
+
+
+function createFilteredQuery(req) {
+    const tier = req.query.tier; 
+    const companyName = req.query.companyName; 
+
+    let query = db('items');
+    
+    if (tier) {
+        query = query.where((builder) => {
+            if (tier === "gem") {
+                builder
+                    .whereRaw(`JSON_EXTRACT(data, "$.data.info.semrush_summary.semrush_visits_latest_month") > ?`, [1000000])
+                    .orWhereRaw(`JSON_EXTRACT(data, "$.data.info.acquisitions_summary.num_acquisitions") > ?`, [2])
+                    .orWhereRaw(`JSON_EXTRACT(data, "$.data.info.funding_rounds_summary.funding_total.value_usd") > ?`, [5000000]);
+            } else if (tier === "mature") {
+                builder
+                    .whereRaw(`JSON_EXTRACT(data, "$.data.info.semrush_summary.semrush_visits_latest_month") > ?`, [200000])
+                    .orWhereRaw(`JSON_EXTRACT(data, "$.data.info.funding_rounds_summary.funding_total.value_usd") > ?`, [1000000]);
+            }
+        });
+    }
+
+    if (companyName && companyName.length > 2) {
+        query = query.where('url', 'like', `%${companyName}%`);
+    }
+
+    // debug sql
+    console.log(query.toSQL().toNative());
+
+    return query;
+}
+
+
+
+async function fetchItems(req, usePagination = true) {
+    const page = parseInt(req.query.page) || 1; 
+    const offset = (page - 1) * ITEMS_PER_PAGE;
     const order = req.query.order || 'desc';
     const orderBy = req.query.orderBy || 'updatedAt';
+    
+    let query = createFilteredQuery(req)
+        .select(ITEMS_FIELDS.filter(field => field !== 'data').concat(ITEMS_JSON_FIELDS_TRANSFORMED))
+        .orderBy(orderBy, order);
 
+    if (usePagination) {
+        query = query.limit(ITEMS_PER_PAGE).offset(offset);
+    }
+
+    const items = await query;
+    return items;
+}
+
+
+app.get('/items/csv', async (req, res) => {
     try {
-        const items = await db('items').select(ITEMS_FIELDS.filter(field => field !== 'data')
-        ).orderBy(orderBy, order).limit(ITEMS_PER_PAGE).offset(offset);
-        const totalItems = await db('items').count('* as total');
-        const totalPages = Math.ceil(totalItems[0].total / ITEMS_PER_PAGE);
+        // Instead of calling fetchItems directly, we'll create the filtered query and then add necessary transformations.
+        let query = createFilteredQuery(req)
+            .select(ITEMS_FIELDS.filter(field => field !== 'data').concat(ITEMS_JSON_FIELDS_TRANSFORMED));
         
-        res.json({ items, totalPages, totalItems: totalItems[0].total });
+        const items = await query;
+
+        // Convert items to CSV using PapaParse
+        const csv = Papa.unparse(items);
+
+        // Set the response header for CSV and download the file
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=items.csv');
+        res.send(csv);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to export items to CSV." });
+    }
+});
+
+app.get('/items', async (req, res) => {
+    try {
+        const items = await fetchItems(req); 
+        const totalItemsQuery = createFilteredQuery(req);
+        const countResult = await totalItemsQuery.count('* as total');
+        const totalPages = Math.ceil(countResult[0].total / ITEMS_PER_PAGE);
+        
+        res.json({ items, totalPages, totalItems: countResult[0].total });
+
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Failed to fetch items." });
     }
 });
+
+
 
 app.get('/items/:id/data', async (req, res) => {
     const itemId = parseInt(req.params.id);
@@ -151,7 +251,10 @@ wss.on('connection', (ws) => {
 
             // The logic to process item updates
             async function processItemUpdate(itemId) {
-                const items = await db('items').select(ITEMS_FIELDS.filter(field => field !== 'data')).where('id', itemId);
+                
+                const items = await db('items').select(ITEMS_FIELDS.filter(field => field !== 'data').concat(ITEMS_JSON_FIELDS_TRANSFORMED)
+                ).where('id', itemId);
+                console.log('processItemUpdate', itemId, items);
                 if (items.length) {
                     ws.send(wsStruct('item_update', items[0]));
                 }
@@ -164,6 +267,7 @@ wss.on('connection', (ws) => {
             // Add a listener for IPC messages
             child.on('message', (ipcMessage) => {
                 // Handle IPC messages as needed
+                console.log('Received IPC message',new Date, ipcMessage);
                 if (ipcMessage.type === 'log') {
                     console.log(`Received custom IPC message: ${JSON.stringify(ipcMessage.data)}`);
                     // Do something with the custom IPC message
@@ -173,6 +277,7 @@ wss.on('connection', (ws) => {
                         // Use the debounced function here
                         //debouncedItemUpdate(ipcMessage.data.itemId);
                         let debouncedItemUpdate = createDebouncer(processItemUpdate, 500, ipcMessage.data.itemId);
+                        
                         debouncedItemUpdate(ipcMessage.data.itemId);
                     }
                 }

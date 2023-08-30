@@ -28,15 +28,6 @@ const scraperLoop = async () => {
     //console.log(newItems);
 }
 
-// read more about extractors: https://scrapeninja.net/docs/js-extractor/
-// for more extractor examples, see ScrapeNinja Playground: https://scrapeninja.net/scraper-sandbox?slug=metadata
-let extractor = `function extract (input, cheerio) {
-    let $ = cheerio.load(input);
-    return { 
-      title: $(".title .titleline").text(),
-      url:  $(".title .titleline a:first").attr('href') 
-    }
-  }`;
 
 const scrape = async (item) => {
 
@@ -44,41 +35,29 @@ const scrape = async (item) => {
 
     await db('items').update({ ep1StartedAt: db.fn.now() }).where('id', item.id);
 
-    let geo = Math.random() > 0.5 ? "us" : "eu";
-    log(`scraping ${item.url}... with ${geo} geo`, 'info', item.id);
+    log(`scraping ${item.url}...`, 'info', item.id);
 
-    // change to 'https://scrapeninja.p.rapidapi.com/scrape-js' if you are subsribed to ScrapeNinja via RapidAPI
-    const url = 'https://scrapeninja.apiroad.net/scrape';
-
-    // prefer to use /scrape if you don't need to execute JS!
+    const url = `https://company-intelligence.apiroad.net/lookup?domain=${item.url}`;
 
 
-    const PAYLOAD = {
-        "url": item.url,
-        "method": "GET",
-        "retryNum": 2,
-        geo,
-        extractor
-    };
 
     const options = {
-        method: 'POST',
+        method: 'GET',
         headers: {
             'content-type': 'application/json',
-            // get your key on https://apiroad.net/marketplace/apis/scrapeninja or 
-            // replace with 'x-rapidapi-key' from RapidAPI: https://rapidapi.com/restyler/api/scrapeninja
+            // get your key on https://apiroad.net/apis/company-intelligence
             'x-apiroad-key': process.env.APIROAD_KEY
-        },
-        body: JSON.stringify(PAYLOAD)
+        }
     };
 
-    let resJson, resText;
+    let resJson, resText, resStatus;
     try {
         let res = await fetch(url, options);
-
+        resStatus = res.status;
         try {
             resText = await res.text();
             resJson = JSON.parse(resText);
+            
         } catch (e) {
             log('err parsing json: ' + resText.substring(0, 300), 'error', item.id);
         }
@@ -87,29 +66,23 @@ const scrape = async (item) => {
             log('429 error' + JSON.stringify(res.headers), 'error', item.id);
         }
 
-        // Basic error handling. Modify if neccessary
-        if (!resJson || !resJson.info || ![200, 404].includes(resJson.info.statusCode)) {
-
-            throw new Error('http code:' + res.status + ' body:' + resText);
+        if (![200, 404].includes(res.status)) {
+            log('http code:' + res.status + ' body:' + resText, 'error', item.id);
+            throw new Error('http code:' + res.status + ' body:' + resText.substring(0, 300));
         }
 
-        log('target website response status: ' + resJson.info.statusCode, 'info', item.id);
-        if (!resJson.extractor.result || !resJson.extractor.result.name) {
-            //console.log('empty extractor, target website response body: ', resJson);
-        }
 
-        log('target website response extractor: ' + JSON.stringify(resJson.extractor), 'info', item.id);
-
-        if (!resJson.extractor || !resJson.extractor.result) {
-            throw new Error('Bad extractor result:' + JSON.stringify(resJson.extractor));
-        }
-
+        
         await db('items').update({
             data: JSON.stringify(resJson),
             updatedAt: db.fn.now(),
-            ep1FinishedAt: db.fn.now()
+            ep1FinishedAt: db.fn.now(),
+            ep1HttpResponseCode: resStatus,
+            ep1ErrorAt: null,
+            ep1ErrorMsg: null,
         }).where('id', item.id);
-
+        await log(`Success with ${resStatus} http code`, 'info', item.id);
+        
     } catch (e) {
         await db('items')
             .update({
@@ -117,6 +90,7 @@ const scrape = async (item) => {
                 updatedAt: db.fn.now(),
                 ep1ErrorAt: db.fn.now(),
                 ep1ErrorMsg: e.toString(),
+                ep1HttpResponseCode: resStatus,
                 ep1ErrorCount: db.raw('?? + 1', ['ep1ErrorCount'])
             })
             .where('id', item.id);
