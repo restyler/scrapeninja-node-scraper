@@ -106,6 +106,7 @@ const scrape = async (item) => {
 
         await db('items').update({
             data: JSON.stringify(resJson),
+            updatedAt: db.fn.now(),
             ep1FinishedAt: db.fn.now()
         }).where('id', item.id);
 
@@ -113,6 +114,7 @@ const scrape = async (item) => {
         await db('items')
             .update({
                 data: resJson ? JSON.stringify(resJson) : null,
+                updatedAt: db.fn.now(),
                 ep1ErrorAt: db.fn.now(),
                 ep1ErrorMsg: e.toString(),
                 ep1ErrorCount: db.raw('?? + 1', ['ep1ErrorCount'])

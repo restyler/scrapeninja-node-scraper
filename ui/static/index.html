@@ -44,17 +44,17 @@ https://cdn.jsdelivr.net/npm/vue-json-tree-view@2.1.6/dist/vue-json-tree-view.mi
 
         <h3 v-if="logs.length">Logs:</h3>
         <div class="mb-4 overflow-auto" style="max-height: 500px;" v-if="logs.length" ref="logsContainer" >
-            <div v-for="log in logs" :key="log.id"> 
+            <div v-for="log in logs" :key="log.id" :class="{ 'text-danger': log.severity == 'error' }"> 
                 {{ log.message }}
             </div>
         </div>
 
-        <div v-if="errors.length">
+        <!--<div v-if="errors.length">
             <h3>Errors:</h3>
             <div v-for="error in errors" class="text-danger alert alert-danger" role="alert" :key="error.id">
                 {{ error.message }}
             </div>
-        </div>
+        </div>-->
 
         <div class="mt-4 mb-4">
             <button class="btn btn-info" @click="showForm = !showForm">Add more items</button>
@@ -72,8 +72,15 @@ https://cdn.jsdelivr.net/npm/vue-json-tree-view@2.1.6/dist/vue-json-tree-view.mi
                 <!-- First Line: Display URL -->
                 <div class="d-flex mb-2">
                     <div class="flex-fill">URL: {{ item.url }} 
-                        <div v-if="item.ep1FinishedAt" class="badge bg-success">FINISHED</div>
+                        <div v-if="item.ep1StartedAt && !item.ep1FinishedAt && !item.ep1ErrorAt" class="badge bg-warning">IN PROGRES 
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="sr-only"></span>
+                            </div>
+                        </div>
+                        <div v-else-if="item.ep1FinishedAt" class="badge bg-success">FINISHED</div>
                         <div v-else-if="item.ep1ErrorAt" class="badge bg-danger">ERROR</div>
+                        <div v-else class="badge bg-light text-dark">PENDING</div>
+
                     </div>
                     <div>
                         <button @click="openModal(item)" class="btn btn-info btn-sm">View Details</button>
@@ -83,7 +90,7 @@ https://cdn.jsdelivr.net/npm/vue-json-tree-view@2.1.6/dist/vue-json-tree-view.mi
                 <!-- Second Line: Display Timestamps and Error Details -->
                 <div class="d-flex item-service-info-container">
                     
-                    <div class="flex-fill">ID: #{{item.id}}. Created At: {{ item.createdAt }}</div>
+                    <div class="flex-fill">ID: #{{item.id}}. Created: {{ item.createdAt }} Updated: {{ item.updatedAt }}</div>
                     <div v-if="item.ep1StartedAt" class="flex-fill">EP1 Started At: {{ item.ep1StartedAt }}</div>
                     <div v-if="item.ep1FinishedAt" class="flex-fill">EP1 Finished At: {{ item.ep1FinishedAt }}</div>
                     

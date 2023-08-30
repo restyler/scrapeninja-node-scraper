@@ -2,7 +2,11 @@ version: '3'
 
 services:
   scraper:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3020:3020"
     environment:
       - APIROAD_KEY=${APIROAD_KEY}
     volumes:

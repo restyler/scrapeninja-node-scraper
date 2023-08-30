@@ -19,13 +19,17 @@ new Vue({
         lastRefreshAt: null,
         lastRefreshSecondsAgo: 0,
         lastRefreshFormatterInterval: null,
-        loadingData: false
+        loadingData: false,
+
+        socketRetryCount: 0,
+        maxSocketRetries: 5,
+        socketRetryInterval: 5000
     },
     created() {
         this.connectWebSocket();
         this.fetchItems(this.currentPage);
-        this.resumeFetching();
-        this.lastRefreshFormatterInterval = setInterval(this.updateSecondsAgo, 1000);
+        //this.resumeFetching();
+        //this.lastRefreshFormatterInterval = setInterval(this.updateSecondsAgo, 1000);
     },
     beforeDestroy() {
         this.pauseFetching();  // Clear the interval when the component is destroyed
@@ -96,31 +100,57 @@ new Vue({
             itemModal.show();
         },
         connectWebSocket() {
+            if (this.socketRetryCount >= this.maxSocketRetries) {
+                console.error("Max reconnect attempts reached. Won't try again.");
+                return;
+            }
+    
             this.socket = new WebSocket('ws://localhost:3020');
-            
+    
             this.socket.addEventListener('open', () => {
                 console.log('WebSocket connected.');
+                this.logs.push({ createdAt: Date.now(), message: 'WebSocket connected.' });
+                this.socketRetryCount = 0; // reset retry count on successful connection
             });
-
+    
             this.socket.addEventListener('message', (event) => {
-                // Check if the message is an error
-                // This is just a simple check; you can adjust based on your application
-                if (event.data.toLowerCase().includes('error')) {
-                    this.errors.push({ id: Date.now(), message: event.data });
-                } else {
-                    this.logs.push({ id: Date.now(), message: event.data });
+                const data = JSON.parse(event.data);
+                if (data.type == 'log_stderr') {
+                    this.logs.push({ createdAt: Date.now(), message: data.data, severity: 'error' });
+                    this.errors.push({ createdAt: Date.now(), message: data.data });
+                }
+                if (data.type == 'log_stdout') {
+                    this.logs.push({ createdAt: Date.now(), message: data.data });
+                }
+                if (data.type == 'item_update') {
+                    console.log('item_update', data);
+                    let itemIdx = this.items.findIndex(i => i.id === data.data.id);
+                    console.log('found item', itemIdx);
+                    if (itemIdx !== -1) {
+                        //item = data;
+                        this.$set(this.items, itemIdx, data.data);
+                    }
                 }
             });
-
+    
             this.socket.addEventListener('close', (event) => {
                 console.log('WebSocket closed.', event);
-                this.errors.push({ id: Date.now(), message: 'WebSocket closed.' });
+                this.logs.push({ createdAt: Date.now(), message: `WebSocket closed. Reconnection attempt #${this.socketRetryCount+1}`, severity: 'error' });
+                //this.errors.push({ id: Date.now(), message: `WebSocket closed. Reconnection attempt #${this.socketRetryCount+1}` });
+                this.socketRetryCount++;
+                setTimeout(() => this.connectWebSocket(), this.socketRetryInterval);
+            });
+    
+            this.socket.addEventListener('error', (event) => {
+                this.logs.push({ createdAt: Date.now(), message: `WebSocket error: ${event.toString()}`, severity: 'error' });
+                console.error('WebSocket error:', event);
             });
         },
         startProcess() {
             if (this.socket && this.socket.readyState === WebSocket.OPEN) {
                 this.socket.send('start_process');
             } else {
+                this.logs.push({ createdAt: Date.now(), message: `WebSocket is not open. Can't send message.`, severity: 'error' });
                 console.error("WebSocket is not open. Can't send message.");
             }
         },
@@ -179,11 +209,11 @@ new Vue({
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    this.logs.push({ id: Date.now(), message: 'Items added successfully!' });
+                    this.logs.push({ createdAt: Date.now(), message: 'Items added successfully!' });
                     this.newItems = "";  // Clear the textarea
                     this.fetchItems(this.currentPage);
                 } else {
-                    this.errors.push({ id: Date.now(), message: 'Failed to add items.' });
+                    this.errors.push({ createdAt: Date.now(), message: 'Failed to add items.' });
                 }
             });
         }

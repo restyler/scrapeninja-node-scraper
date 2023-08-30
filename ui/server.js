@@ -2,8 +2,9 @@ import express from 'express';
 import http from 'http';
 import { spawn } from 'child_process';
 import { WebSocketServer } from 'ws';
-import { db } from '../src/lib.js';
+import { db, debounceFactory } from '../src/lib.js';
 import path from 'path';
+
 
 import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -16,6 +17,9 @@ console.log(`process.env.APIROAD_KEY: ${process.env.APIROAD_KEY}`);
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
+
+
+
 
 app.use('/static', express.static(new URL('./static', import.meta.url).pathname));
 app.use(express.json()) //For JSON requests
@@ -37,23 +41,29 @@ app.post('/add-items', (req, res) => {
     }
 });
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 20;
+const ITEMS_FIELDS = ['id',
+'url',
+'createdAt',
+'updatedAt',
+'data',
+'ep1StartedAt',
+'ep1FinishedAt',
+'ep1ErrorAt',
+'ep1ErrorMsg',
+'ep1ErrorCount'];
 
 app.get('/items', async (req, res) => {
     const page = parseInt(req.query.page) || 1; // Default to page 1
     const offset = (page - 1) * ITEMS_PER_PAGE;
 
+    // order
+    const order = req.query.order || 'desc';
+    const orderBy = req.query.orderBy || 'updatedAt';
+
     try {
-        const items = await db('items').select(
-            'id',
-            'url',
-            'createdAt',
-            'ep1StartedAt',
-            'ep1FinishedAt',
-            'ep1ErrorAt',
-            'ep1ErrorMsg',
-            'ep1ErrorCount'
-        ).limit(ITEMS_PER_PAGE).offset(offset);
+        const items = await db('items').select(ITEMS_FIELDS.filter(field => field !== 'data')
+        ).orderBy(orderBy, order).limit(ITEMS_PER_PAGE).offset(offset);
         const totalItems = await db('items').count('* as total');
         const totalPages = Math.ceil(totalItems[0].total / ITEMS_PER_PAGE);
         
@@ -97,6 +107,11 @@ app.get('/', (req, res) => {
     res.redirect('/static/index.html');
 });
 
+
+const wsStruct = (type, data) => {
+    return JSON.stringify({ type, data });
+};
+
 let child;
 
 wss.on('connection', (ws) => {
@@ -115,23 +130,56 @@ wss.on('connection', (ws) => {
                 updatedAt: db.fn.now()
             });
 
-            child = spawn('node', ['../src/step1.js'], {
+            const step1ScriptPath = path.join(__dirname, '..', 'src', 'step1.js');
+
+            child = spawn('node', [step1ScriptPath], {
                 env: {
                     ...process.env,
                     // any other env variables you want to set or override
-                }
+                },
+                stdio: ['pipe', 'pipe', 'pipe', 'ipc'] // ipc is required for the child to send messages back to the parent
             });
 
             child.stdout.on('data', (data) => {
-                ws.send(data.toString());
+                ws.send(wsStruct('log_stdout', data.toString()));
             });
 
             child.stderr.on('data', (data) => {
-                ws.send(data.toString());
+                ws.send(wsStruct('log_stderr', data.toString()));
+            });
+
+
+            // The logic to process item updates
+            async function processItemUpdate(itemId) {
+                const items = await db('items').select(ITEMS_FIELDS.filter(field => field !== 'data')).where('id', itemId);
+                if (items.length) {
+                    ws.send(wsStruct('item_update', items[0]));
+                }
+            }
+            // Create a debounced version of the processItemUpdate function
+            //const debouncedItemUpdate = debounce(processItemUpdate, 500);
+
+            const createDebouncer = debounceFactory();
+
+            // Add a listener for IPC messages
+            child.on('message', (ipcMessage) => {
+                // Handle IPC messages as needed
+                if (ipcMessage.type === 'log') {
+                    console.log(`Received custom IPC message: ${JSON.stringify(ipcMessage.data)}`);
+                    // Do something with the custom IPC message
+                    //ws.send(wsStruct('log_stdout', `IPC Message: ${JSON.stringify(ipcMessage.data)}`));
+
+                    if (ipcMessage.data.itemId) {
+                        // Use the debounced function here
+                        //debouncedItemUpdate(ipcMessage.data.itemId);
+                        let debouncedItemUpdate = createDebouncer(processItemUpdate, 500, ipcMessage.data.itemId);
+                        debouncedItemUpdate(ipcMessage.data.itemId);
+                    }
+                }
             });
 
             child.on('exit', (code) => {
-                ws.send(`Process exited with code ${code}`);
+                ws.send(wsStruct('log_stdout', `Process exited with code ${code}`));
             });
         } else if (message === 'stop_process') {
             if (child) {

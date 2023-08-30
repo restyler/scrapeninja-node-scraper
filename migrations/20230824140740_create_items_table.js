@@ -8,6 +8,7 @@ export const up = function(knex) {
         table.string('url');
         table.text('data');
         table.datetime('createdAt').defaultTo(knex.fn.now());
+        table.datetime('updatedAt').defaultTo(knex.fn.now());
         table.datetime('ep1StartedAt');
         table.datetime('ep1FinishedAt');
         table.datetime('ep1ErrorAt');

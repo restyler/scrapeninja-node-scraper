@@ -7,9 +7,10 @@ WORKDIR /usr/src/app
 # Copy package.json and package-lock.json before other files
 # Utilize Docker cache to save re-installing dependencies if unchanged
 COPY package*.json ./
+COPY ui/package*.json ./ui/
 
 # Install dependencies
-RUN npm install
+RUN npm install && cd ui && npm install
 
 # Copy all files
 COPY . .
@@ -17,4 +18,4 @@ COPY . .
 RUN chmod +x /usr/src/app/init.sh
 
 
-CMD ["node", "src/step1.js"]
+CMD ["node", "ui/server.js"]
