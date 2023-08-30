@@ -103,7 +103,7 @@ https://cdn.jsdelivr.net/npm/vue-json-tree-view@2.1.6/dist/vue-json-tree-view.mi
 
                     </div>
 
-                    <div class="col-9 col-md-4" v-if="item.ep1FinishedAt && item.data_permalink">
+                    <div class="col-9 col-md-5" :class="{ invisible: !(item.ep1FinishedAt && item.data_permalink)}">
                         <span class="mark" v-if="companyTier(item) == 'gem'">💎 Gem</span>
                         <span v-else class="mark bg-success bg-opacity-10" v-if="companyTier(item) == 'mature'">💛 Mature</span>
                         <span v-if="item.data_hostname && item.data_hostname != item.url" class="mark bg-danger bg-opacity-10">⚠️ Domain mismatch: <a :href="'https://'+ item.data_hostname">{{ item.data_hostname }}</a></span>
@@ -124,20 +124,19 @@ https://cdn.jsdelivr.net/npm/vue-json-tree-view@2.1.6/dist/vue-json-tree-view.mi
                 </div>
             
                 <!-- Second Line: Display Timestamps and Error Details -->
-                <div class="d-flex item-service-info-container">
+                <div class="row item-service-info-container">
                     
-                    <div class="flex-fill">ID: #{{item.id}}. Created: {{ item.createdAt }} Updated: {{ item.updatedAt }}</div>
-                    <div v-if="item.ep1StartedAt" class="flex-fill">EP1 Started At: {{ item.ep1StartedAt }}</div>
-                    <div v-if="item.ep1FinishedAt" class="flex-fill">EP1 Finished At: {{ item.ep1FinishedAt }}</div>
+                    <div class="col-md-3" :title="'Created: ' + item.createdAt">ID: #{{item.id}}. Updated: {{ item.updatedAt }}</div>
+                    <div v-if="item.ep1StartedAt" class="col-md-4">EP1 started at: {{ item.ep1StartedAt }}, finished at: {{ item.ep1FinishedAt }}</div>
+                    
                     
                     
                 </div>
 
                 <!-- Third line: Errors -->
-                <div v-if="item.ep1ErrorMsg" class="item-service-info-container">
-                    <div class="flex-fill">EP1 Error Count: {{ item.ep1ErrorCount }}</div>
-                    <div class="flex-fill text-danger">EP1 Error Message: {{ item.ep1ErrorMsg }}</div>
-                    <div v-if="item.ep1ErrorAt" class="flex-fill">EP1 Error At: {{ item.ep1ErrorAt }}</div>
+                <div v-if="item.ep1ErrorMsg" class="row item-service-info-container">
+                    <div class="col-md-12">Error count: {{ item.ep1ErrorCount }}, last error at {{ item.ep1ErrorAt }}</div>
+                    <div class="col-md-12 text-danger">EP1 Error Message: {{ item.ep1ErrorMsg }}</div>
                 </div>
             </div>
             
@@ -185,6 +184,7 @@ https://cdn.jsdelivr.net/npm/vue-json-tree-view@2.1.6/dist/vue-json-tree-view.mi
                     <div><strong>EP1 Error At:</strong> {{ currentItem.ep1ErrorAt }}</div>
                     <div><strong>EP1 Error Message:</strong> {{ currentItem.ep1ErrorMsg }}</div>
                     <div><strong>EP1 Error Count:</strong> {{ currentItem.ep1ErrorCount }}</div>
+                    <div><strong>EP1 HTTP Response Code:</strong> {{ currentItem.ep1HttpResponseCode }}</div>
                         
                     <h3 class="mt-4">Logs:</h3>
                     <div class="mb-4 overflow-auto" style="max-height: 500px;" v-if="currentItem.logs && currentItem.logs.length"  >
