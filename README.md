@@ -1,18 +1,26 @@
-# ScrapeNinja Demo Node.js Scraper
-This example showcases a multithreaded web scraper that utilizes SQLite for storage and the ScrapeNinja API as its scraping engine.
+# Website Intelligence API Runner
+This example showcases a multithreaded API runner that utilizes SQLite for storage and the [Website Intelligence API](https://apiroad.net/marketplace/apis/company-intelligence) as a source of data. 
 
-# Running in Docker
-Run these commands from cloned repo folder:
+# Recommended: running in Docker
+1. Clone this repo to your host machine
+2. Make sure you have docker installed
+3. Run these commands from cloned repo folder:
 ```bash
 # Build container from project folder. Run once.
 docker-compose build
 
 # Init db (run once). this will create /data/scraper.sqlite3 on host machine, mirrored to Docker container
-docker-compose run scraper /bin/sh init.sh
+docker-compose run scraper npm run init-db
 
-# Run the scraper. Run multiple times to scrape more items
+# Run the Scraper Runner UI server.
 docker-compose up
 ```
+
+Since `docker-compose.yml` is configured to map host machine files into docker container, you can edit `src/step1.js` to modify scraper behaviour and restarting the scraper process will see the changes in the file without rebuilding the Dockerfile.
+
+Now open `http://127.0.0.1:3020` in your browser to see the UI:
+![test](/ui/static/img.png)
+
 
 # Alternative: Running manually without Docker
 ## Pre-requisites:
@@ -33,23 +41,23 @@ npx knex seed:run --env production
 ```
 This will add 3 sample URLs into the `items` table in the database for scraping.
 
+# Retrieving your API key
+This service requires subscription to a Website Intelligence API. Put your key into `.env` file in root folder of the project.
 
-## ScrapeNinja Subscription
-ScrapeNinja is a scraping API with smart retries and rotating proxies under the hood.
 
 ### Via APIRoad
-Subscribe to ScrapeNinja at [ScrapeNinja API on APIRoad](https://apiroad.net/marketplace/apis/scrapeninja) and obtain your API key.
+Subscribe to ScrapeNinja at [ScrapeNinja API on APIRoad](https://apiroad.net/apis/company-intelligence) and obtain your API key.
 
 ### Via RapidAPI
-ScrapeNinja is also available on RapidAPI: https://rapidapi.com/restyler/api/scrapeninja (you will need to change API key name in the HTTP request then, check the code of `src/step1.js`)
+The same API is also available on RapidAPI: https://rapidapi.com/restyler/api/website-intelligence (you will need to change API key name in the HTTP request then, check the code of `src/step1.js`)
 
 ## Configure scraper settings:
 
 - Create a .env file in the project folder (you can copy from .env.dist).
 - Set your `APIROAD_KEY` within this file.
 
-# Running the scraper
-Launch the scraper by entering the following in your terminal:
+# [OPTIONAL] Running the scraper without UI runner
+The scraper process can be run by entering the following in your terminal:
 ```bash
 node src/step1.js
 ```

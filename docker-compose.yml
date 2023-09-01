@@ -10,4 +10,5 @@ services:
     environment:
       - APIROAD_KEY=${APIROAD_KEY}
     volumes:
-      - ./data:/usr/src/app/data
+      - .:/usr/src/app
+      - /usr/src/app/node_modules

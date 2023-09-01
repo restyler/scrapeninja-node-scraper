@@ -12,10 +12,6 @@ COPY ui/package*.json ./ui/
 # Install dependencies
 RUN npm install && cd ui && npm install
 
-# Copy all files
-COPY . .
-
-RUN chmod +x /usr/src/app/init.sh
 
 
 CMD ["node", "ui/server.js"]
