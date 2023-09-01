@@ -1,12 +1,16 @@
-# Website Intelligence API Runner
+# Website Intelligence API Dashboard
 
-This project demonstrates a multithreaded API runner using SQLite for storage and sourcing data from the [Company Intelligence API](https://apiroad.net/marketplace/apis/company-intelligence). This API provides insights often seen on platforms like Crunchbase and Semrush, such as funding details, website traffic analysis, founder profiles, social media links, and more.
+This project demonstrates a simple Vue.js+Websockets powered dashboard, specifically conditioned to run Node.js data collection processes. The project uses SQLite for storage and the [Company Intelligence API](https://apiroad.net/marketplace/apis/company-intelligence) as a sample data collector. This API provides insights often seen on platforms such as Crunchbase and Semrush, such as funding details, website traffic analysis, founder profiles, social media links and more.
 
-## API Runner Use Case
-The runner offers a foundational UI for long-running data enrichment pipelines. It provides real-time updates on data fetched from APIs (websocket powered) and ensures rapid and flexible persistent storage. Quick data filtering, pagination and CSV export features are available.
+# Why?
+I built this when I got tired of launching my Node.js web spiders and data enrichment pipelines from VS Code terminal. I wanted a simple and fast alternative where I could start and stop my Node.js processes, see the console.log output of those processes in real time, and also get a real time view of what kind of data is flowing into my database from external sources (instead of constantly refreshing my SQLite & MySQL tables). Process runner and data collector processes are decoupled and use [Node.js IPC communication channel](https://nodejs.org/api/child_process.html) to interact and `ws` npm library to stream data and UI updates into browser with low delays. 
+
+
+## API Dashboard Use Case
+The runner provides a basic UI for long-running data enrichment pipelines. It provides real-time updates on data fetched from APIs (websocket powered) and ensures fast and flexible persistent storage. Fast data filtering, pagination and CSV export capabilities are available.
 
 ## Company Intelligence API Use Case
-Consider having 10,000 user emails and a need to enrich each with company information for a more robust B2B sales pipeline. The Company Intelligence API is one such solution.
+Suppose you have 10,000 user emails and you need to enrich each one with company intelligence for a more robust B2B sales pipeline. The Company Intelligence API is just one possible implementation of such a dashboard.
 
 ## Recommended: Docker Setup
 1. Clone this repo.
