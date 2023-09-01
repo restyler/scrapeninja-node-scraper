@@ -1,18 +1,26 @@
 # Website Intelligence API Runner
-This example showcases a multithreaded API runner that utilizes SQLite for storage and the [Website Intelligence API](https://apiroad.net/marketplace/apis/company-intelligence) as a source of data. 
 
-# Recommended: running in Docker
-1. Clone this repo to your host machine
-2. Make sure you have docker installed
-3. Run these commands from cloned repo folder:
+This project demonstrates a multithreaded API runner using SQLite for storage and sourcing data from the [Company Intelligence API](https://apiroad.net/marketplace/apis/company-intelligence). This API provides insights often seen on platforms like Crunchbase and Semrush, such as funding details, website traffic analysis, founder profiles, social media links, and more.
+
+## API Runner Use Case
+The runner offers a foundational UI for long-running data enrichment pipelines. It provides real-time updates on data fetched from APIs (websocket powered) and ensures rapid and flexible persistent storage. Quick data filtering, pagination and CSV export features are available.
+
+## Company Intelligence API Use Case
+Consider having 10,000 user emails and a need to enrich each with company information for a more robust B2B sales pipeline. The Company Intelligence API is one such solution.
+
+## Recommended: Docker Setup
+1. Clone this repo.
+2. Ensure Docker is installed.
+3. Execute the following commands in the cloned repo directory:
+
 ```bash
-# Build container from project folder. Run once.
+# Build container. Execute once.
 docker-compose build
 
-# Init db (run once). this will create /data/scraper.sqlite3 on host machine, mirrored to Docker container
+# Initialize the database (once). This creates /data/scraper.sqlite3 on the host, mirrored in the Docker container.
 docker-compose run scraper npm run init-db
 
-# Run the Scraper Runner UI server.
+# Start the Scraper Runner UI server.
 docker-compose up
 ```
 
