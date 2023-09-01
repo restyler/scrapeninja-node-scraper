@@ -14,4 +14,4 @@ RUN npm install && cd ui && npm install
 
 
 
-CMD ["node", "ui/server.js"]
+CMD ["node", "ui/src/server.js"]

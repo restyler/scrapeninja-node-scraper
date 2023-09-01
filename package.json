@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "scraper": "node src/step1.js",
-    "ui": "nodemon ui/server.js",
+    "ui": "nodemon ui/src/server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "init-db": "npx knex migrate:latest --env production && npx knex seed:run --env production",
     "reset-db": "rm ./data/* && npx knex migrate:latest --env production && npx knex seed:run --env production"

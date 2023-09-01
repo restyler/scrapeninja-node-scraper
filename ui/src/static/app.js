@@ -1,4 +1,4 @@
-console.log(window);
+//console.log(window);
 Vue.component('json-viewer', window.JsonView.default);
 
 new Vue({
