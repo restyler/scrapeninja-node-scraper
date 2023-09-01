@@ -19,7 +19,7 @@ docker-compose up
 Since `docker-compose.yml` is configured to map host machine files into docker container, you can edit `src/step1.js` to modify scraper behaviour and restarting the scraper process will see the changes in the file without rebuilding the Dockerfile.
 
 Now open `http://127.0.0.1:3020` in your browser to see the UI:
-![test](/ui/static/img.png)
+![Runner Demo](./ui/static/runner-demo.gif)
 
 
 # Alternative: Running manually without Docker
