@@ -111,7 +111,7 @@ https://cdn.jsdelivr.net/npm/vue-json-tree-view@2.1.6/dist/vue-json-tree-view.mi
                             {{ formatNumber(item.data_semrush_visits_latest_month) }}</span>
                         &nbsp;
                         <a :href="item.data_linkedin_value" class="icon-link"><img style="width: 20px; height: 20px;"  src="/static/img/icon-linkedin.svg" /></a>
-                        <a :href="'https://crunchbase.com/organisation/' + item.data_permalink" class="icon-link"><img style="width: 20px; height: 20px;" src="/static/img/icon-cb.svg" /></a>
+                        <a :href="'https://crunchbase.com/organization/' + item.data_permalink" class="icon-link"><img style="width: 20px; height: 20px;" src="/static/img/icon-cb.svg" /></a>
                         <div>
                             <span :class="{'text-secondary': !item.data_funding_total_value_usd }">Funding: {{ formatNumber(item.data_funding_total_value_usd) }}</span>
                             <span :class="{'text-secondary': !item.data_num_acquisitions }">Acquisitions: {{ item.data_num_acquisitions }}</span>
