@@ -1,7 +1,7 @@
 import express from 'express';
 import http from 'http';
 import { spawn } from 'child_process';
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import { db, debounceFactory } from '../src/lib.js';
 import path from 'path';
 import Papa from 'papaparse';
@@ -214,21 +214,50 @@ const wsStruct = (type, data) => {
 
 let child;
 
+function broadcast(data) {
+    console.log('broadcasting to ', wss.clients.size, 'data', data);
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(data);
+        }
+    });
+}
+
+
 wss.on('connection', (ws) => {
     console.log('Client connected');
+
+    // Send the current runner state to the client
+    db('runner_state').select().then((runnerState) => {
+        
+        // verify if process is running
+        if (runnerState[0] && runnerState[0].isRunning) {
+            // check if process is alive by runnerState[0].processId
+            try {
+                process.kill(runnerState[0].processId, 0);
+            } catch (e) {
+                // process is not alive
+                runnerState[0].isRunning = false;
+                runnerState[0].lastOutput = 'Process is not alive';
+                db('runner_state').update({
+                    isRunning: false,
+                    lastOutput: 'Process is not alive',
+                    updatedAt: db.fn.now()
+                });
+            }
+        }
+
+        broadcast(wsStruct('runner_state', runnerState[0] ?? { isRunning: false, lastOutput: 'Process is not alive' }));
+    });
 
     ws.on('message', async (message) => {
         console.log(`Received message: ${message}`);
         if (message == 'start_process') {
             if (child) {
+                broadcast(wsStruct('log_stdout', 'Killing previous process'));
                 child.kill();
             }
             console.log('starting process');
-            await db('runner_state').update({
-                isRunning: true,
-                lastOutput: 'Process started',
-                updatedAt: db.fn.now()
-            });
 
             const step1ScriptPath = path.join(__dirname, '..', 'src', 'step1.js');
 
@@ -240,12 +269,46 @@ wss.on('connection', (ws) => {
                 stdio: ['pipe', 'pipe', 'pipe', 'ipc'] // ipc is required for the child to send messages back to the parent
             });
 
+            // get pid and status of a child process
+            console.log('child pid:', child.pid);
+            console.log('child status:', child.connected);
+
+            let runnerState = {
+                isRunning: true,
+                processId: child.pid,
+                scraperPath: step1ScriptPath,
+                lastOutput: 'Process started',
+                createdAt: db.fn.now(),
+                updatedAt: db.fn.now()
+            };
+
+            // First check if a row exists
+            // @TODO: adapt for multiple runners
+            const existingState = await db('runner_state').select('*').first();
+
+            if (!existingState) {
+                // If no row exists, insert
+                await db('runner_state').insert(runnerState);
+            } else {
+                // If row exists, update
+                await db('runner_state').update(runnerState);
+                
+            }
+
+            delete runnerState.updatedAt;
+
+            // convert db.fn.now() to Date object
+            runnerState.createdAt = new Date(runnerState.createdAt);
+
+            broadcast(wsStruct('runner_state', runnerState));
+
+
             child.stdout.on('data', (data) => {
-                ws.send(wsStruct('log_stdout', data.toString()));
+                broadcast(wsStruct('log_stdout', data.toString()));
             });
 
             child.stderr.on('data', (data) => {
-                ws.send(wsStruct('log_stderr', data.toString()));
+                broadcast(wsStruct('log_stderr', data.toString()));
             });
 
 
@@ -256,7 +319,7 @@ wss.on('connection', (ws) => {
                 ).where('id', itemId);
                 console.log('processItemUpdate', itemId, items);
                 if (items.length) {
-                    ws.send(wsStruct('item_update', items[0]));
+                    broadcast(wsStruct('item_update', items[0]));
                 }
             }
             // Create a debounced version of the processItemUpdate function
@@ -284,18 +347,38 @@ wss.on('connection', (ws) => {
             });
 
             child.on('exit', (code) => {
-                ws.send(wsStruct('log_stdout', `Process exited with code ${code}`));
+                broadcast(wsStruct('log_stdout', `Process exited with code ${code}`));
+                let runnerState = {
+                    isRunning: false,
+                    lastOutput: `Process exited with code ${code}`,
+                    updatedAt: db.fn.now()
+                };
+
+                db('runner_state').update(runnerState);
+                // prevent conflict of JSON.stringify with Date object
+                delete runnerState.updatedAt;
+                ws.send(wsStruct('runner_state', runnerState));
             });
-        } else if (message === 'stop_process') {
+        } else if (message == 'stop_process') {
             if (child) {
                 child.kill();
+                console.log(`killing process ${child.pid}`);
+
+                let runnerState = {
+                    isRunning: false,
+                    lastOutput: 'Process stopped',
+                    updatedAt: db.fn.now()
+                };
+    
+                await db('runner_state').update(runnerState);
+                delete runnerState.updatedAt;
+                
+                broadcast(wsStruct('runner_state', runnerState));
+            } else {
+                broadcast(wsStruct('log_stdout', 'Received stop_process ws signal but no process to kill'));
             }
 
-            await db('runner_state').update({
-                is_running: false,
-                last_output: 'Process stopped',
-                updated_at: new Date()
-            });
+            
         }
     });
 });

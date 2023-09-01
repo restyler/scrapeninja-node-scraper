@@ -31,7 +31,8 @@ const scraperLoop = async () => {
 
 const scrape = async (item) => {
 
-    
+    // add test delay 5 seconds
+    // await new Promise(resolve => setTimeout(resolve, 5000));
 
     await db('items').update({ ep1StartedAt: db.fn.now() }).where('id', item.id);
 

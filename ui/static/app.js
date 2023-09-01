@@ -26,7 +26,14 @@ new Vue({
         socketRetryInterval: 5000,
 
         selectedTier: 'all',
-        companyNameFilter: ''
+        companyNameFilter: '',
+
+        runnerState: null,
+        /*runnerState: {
+            isRunning: true,
+            scraperPath: '/Users/username/Projects/scraper',
+            processId: '1234'
+        }*/
     },
     created() {
         this.connectWebSocket();
@@ -141,6 +148,10 @@ new Vue({
     
             this.socket.addEventListener('message', (event) => {
                 const data = JSON.parse(event.data);
+                if (data.type == 'runner_state') {
+                    this.runnerState = data.data;
+                    this.logs.push({ createdAt: Date.now(), message: `Runner state: ${JSON.stringify(data.data)}` });
+                }
                 if (data.type == 'log_stderr') {
                     this.logs.push({ createdAt: Date.now(), message: data.data, severity: 'error' });
                     this.errors.push({ createdAt: Date.now(), message: data.data });
@@ -168,7 +179,7 @@ new Vue({
             });
     
             this.socket.addEventListener('error', (event) => {
-                this.logs.push({ createdAt: Date.now(), message: `WebSocket error: ${event.toString()}`, severity: 'error' });
+                this.logs.push({ createdAt: Date.now(), message: `WebSocket error: ${JSON.stringify(event)}`, severity: 'error' });
                 console.error('WebSocket error:', event);
             });
         },
