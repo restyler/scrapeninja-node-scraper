@@ -1,6 +1,6 @@
-# Website Intelligence API Dashboard
+# ProspectLens: Website Intelligence API Dashboard
 
-This project demonstrates a simple Vue.js+Websockets powered dashboard, specifically conditioned to run Node.js data collection processes. The project uses SQLite for storage and the [Company Intelligence API](https://apiroad.net/marketplace/apis/company-intelligence) as a sample data collector. This API provides insights often seen on platforms such as Crunchbase and Semrush, such as funding details, website traffic analysis, founder profiles, social media links and more.
+This project demonstrates a simple Vue.js+Websockets powered dashboard, specifically conditioned to run Node.js data collection processes. The project uses SQLite for storage and the [ProspectLens API](https://apiroad.net/marketplace/apis/prospectlens) as a sample data collector. This API provides insights often seen on platforms such as Crunchbase and Semrush, such as funding details, website traffic analysis, founder profiles, social media links and more.
 
 # Why?
 I built this when I got tired of launching my Node.js web spiders and data enrichment pipelines from VS Code terminal. I wanted a simple and fast alternative where I could start and stop my Node.js processes, see the console.log output of those processes in real time, and also get a real time view of what kind of data is flowing into my database from external sources (instead of constantly refreshing my SQLite & MySQL tables). Process runner and data collector processes are decoupled and use [Node.js IPC communication channel](https://nodejs.org/api/child_process.html) to interact and `ws` npm library to stream data and UI updates into browser with low delays. 
